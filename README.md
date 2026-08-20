@@ -16,6 +16,8 @@ La foto guida resta solo nella preview. Non viene disegnata sul canvas usato per
 
 Puoi trascinare la foto guida sopra la camera, ingrandirla, ruotarla e ricentrarla.
 
+La schermata principale usa una modalita camera a tutto schermo, con griglia opzionale, cambio fotocamera e zoom camera quando il dispositivo lo supporta.
+
 ## Privacy
 
 L'app funziona direttamente nel browser. Le foto guida, il feed della fotocamera e le foto scattate non vengono raccolti da questa applicazione.

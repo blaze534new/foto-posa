@@ -3,6 +3,7 @@ const resultView = document.querySelector("#resultView");
 const cameraStage = document.querySelector("#cameraStage");
 const video = document.querySelector("#cameraVideo");
 const overlay = document.querySelector("#guideOverlay");
+const gridOverlay = document.querySelector("#gridOverlay");
 const focusRing = document.querySelector("#focusRing");
 const emptyState = document.querySelector("#emptyState");
 const message = document.querySelector("#message");
@@ -17,6 +18,11 @@ const zoomLabel = document.querySelector("#zoomLabel");
 const rotationSlider = document.querySelector("#rotationSlider");
 const rotationLabel = document.querySelector("#rotationLabel");
 const resetGuideButton = document.querySelector("#resetGuideButton");
+const cameraZoomControl = document.querySelector("#cameraZoomControl");
+const cameraZoomSlider = document.querySelector("#cameraZoomSlider");
+const cameraZoomLabel = document.querySelector("#cameraZoomLabel");
+const gridButton = document.querySelector("#gridButton");
+const fullscreenButton = document.querySelector("#fullscreenButton");
 const switchCameraButton = document.querySelector("#switchCameraButton");
 const captureButton = document.querySelector("#captureButton");
 const canvas = document.querySelector("#captureCanvas");
@@ -33,6 +39,7 @@ let guideTransform = { x: 0, y: 0, scale: 1, rotation: 0 };
 let dragState = null;
 let gestureState = null;
 let didMoveGuide = false;
+let touchState = null;
 const activePointers = new Map();
 
 function setMessage(text, isError = false) {
@@ -76,6 +83,7 @@ async function startCamera() {
     video.classList.toggle("is-front", facingMode === "user");
     await video.play();
     await enableContinuousFocus();
+    setupCameraZoom();
     setMessage("Fotocamera pronta. Scegli una foto guida.");
   } catch (error) {
     stopCamera();
@@ -86,6 +94,42 @@ async function startCamera() {
     setMessage(`${reason} Dettaglio: ${error.message || error.name}`, true);
   } finally {
     updateEmptyState();
+  }
+}
+
+function setupCameraZoom() {
+  cameraZoomControl.hidden = true;
+  const [track] = stream.getVideoTracks();
+  if (!track || !track.getCapabilities) return;
+
+  const capabilities = track.getCapabilities();
+  if (!capabilities.zoom) return;
+
+  const settings = track.getSettings ? track.getSettings() : {};
+  const min = capabilities.zoom.min || 1;
+  const max = capabilities.zoom.max || 1;
+  const step = capabilities.zoom.step || 0.1;
+  const value = clamp(settings.zoom || min, min, max);
+
+  cameraZoomSlider.min = String(min);
+  cameraZoomSlider.max = String(max);
+  cameraZoomSlider.step = String(step);
+  cameraZoomSlider.value = String(value);
+  cameraZoomLabel.textContent = `Zoom camera: ${Number(value).toFixed(1)}x`;
+  cameraZoomControl.hidden = false;
+}
+
+async function applyCameraZoom() {
+  const [track] = stream ? stream.getVideoTracks() : [];
+  if (!track || !track.applyConstraints) return;
+
+  const zoom = Number(cameraZoomSlider.value);
+  cameraZoomLabel.textContent = `Zoom camera: ${zoom.toFixed(1)}x`;
+
+  try {
+    await track.applyConstraints({ advanced: [{ zoom }] });
+  } catch (error) {
+    setMessage(`Zoom camera non disponibile su questo dispositivo: ${error.message || error.name}`, true);
   }
 }
 
@@ -196,6 +240,70 @@ function beginGesture() {
   };
 }
 
+function touchPoints(touches) {
+  return Array.from(touches).map((touch) => ({ x: touch.clientX, y: touch.clientY }));
+}
+
+function beginTouchGesture(touches) {
+  const points = touchPoints(touches);
+  didMoveGuide = false;
+
+  if (points.length === 1) {
+    touchState = {
+      mode: "drag",
+      startX: points[0].x,
+      startY: points[0].y,
+      originX: guideTransform.x,
+      originY: guideTransform.y
+    };
+    return;
+  }
+
+  const center = pointerCenter(points[0], points[1]);
+  touchState = {
+    mode: "gesture",
+    distance: pointerDistance(points[0], points[1]),
+    angle: pointerAngle(points[0], points[1]),
+    centerX: center.x,
+    centerY: center.y,
+    originX: guideTransform.x,
+    originY: guideTransform.y,
+    originScale: guideTransform.scale,
+    originRotation: guideTransform.rotation
+  };
+}
+
+function moveTouchGesture(touches) {
+  if (!touchState) return;
+  const points = touchPoints(touches);
+
+  if (touchState.mode === "drag" && points.length === 1) {
+    guideTransform.x = touchState.originX + points[0].x - touchState.startX;
+    guideTransform.y = touchState.originY + points[0].y - touchState.startY;
+    didMoveGuide = Math.hypot(points[0].x - touchState.startX, points[0].y - touchState.startY) > 4;
+    updateGuideTransform();
+    return;
+  }
+
+  if (points.length >= 2) {
+    if (touchState.mode !== "gesture") {
+      beginTouchGesture(touches);
+      return;
+    }
+
+    const center = pointerCenter(points[0], points[1]);
+    const nextDistance = pointerDistance(points[0], points[1]);
+    const nextAngle = pointerAngle(points[0], points[1]);
+
+    guideTransform.x = touchState.originX + center.x - touchState.centerX;
+    guideTransform.y = touchState.originY + center.y - touchState.centerY;
+    guideTransform.scale = clamp(touchState.originScale * (nextDistance / Math.max(touchState.distance, 1)), 0.4, 2.6);
+    guideTransform.rotation = clamp(touchState.originRotation + nextAngle - touchState.angle, -180, 180);
+    didMoveGuide = true;
+    updateGuideTransform();
+  }
+}
+
 function timestampFileName() {
   const pad = (number) => String(number).padStart(2, "0");
   const now = new Date();
@@ -270,6 +378,32 @@ function showFocusRing(clientX, clientY) {
   requestAnimationFrame(() => focusRing.classList.add("is-visible"));
 }
 
+async function focusCameraAt(clientX, clientY) {
+  const [track] = stream ? stream.getVideoTracks() : [];
+  if (!track || !track.applyConstraints || !track.getCapabilities) return;
+
+  const capabilities = track.getCapabilities();
+  const rect = cameraStage.getBoundingClientRect();
+  const point = {
+    x: clamp((clientX - rect.left) / rect.width, 0, 1),
+    y: clamp((clientY - rect.top) / rect.height, 0, 1)
+  };
+
+  const focusMode = capabilities.focusMode && capabilities.focusMode.includes("single-shot")
+    ? "single-shot"
+    : undefined;
+
+  try {
+    await track.applyConstraints({
+      advanced: [{
+        ...(focusMode ? { focusMode } : {}),
+        pointsOfInterest: [point]
+      }]
+    });
+  } catch {
+  }
+}
+
 focusRing.addEventListener("animationend", () => {
   focusRing.hidden = true;
   focusRing.classList.remove("is-visible");
@@ -301,8 +435,29 @@ rotationSlider.addEventListener("input", () => {
 });
 
 resetGuideButton.addEventListener("click", resetGuideTransform);
+cameraZoomSlider.addEventListener("input", applyCameraZoom);
+gridButton.addEventListener("click", () => {
+  gridOverlay.hidden = !gridOverlay.hidden;
+  gridButton.classList.toggle("is-active", !gridOverlay.hidden);
+});
+
+fullscreenButton.addEventListener("click", async () => {
+  try {
+    if (!document.fullscreenElement && cameraView.requestFullscreen) {
+      await cameraView.requestFullscreen();
+      return;
+    }
+
+    if (document.fullscreenElement && document.exitFullscreen) {
+      await document.exitFullscreen();
+    }
+  } catch (error) {
+    setMessage(`Schermo intero non disponibile: ${error.message || error.name}`, true);
+  }
+});
 
 function endGuidePointer(event) {
+  if (event.pointerType === "touch") return;
   activePointers.delete(event.pointerId);
 
   if (activePointers.size < 2) {
@@ -326,6 +481,7 @@ function endGuidePointer(event) {
 }
 
 cameraStage.addEventListener("pointerdown", (event) => {
+  if (event.pointerType === "touch") return;
   if (overlay.hidden) return;
   event.preventDefault();
   cameraStage.setPointerCapture(event.pointerId);
@@ -350,6 +506,7 @@ cameraStage.addEventListener("pointerdown", (event) => {
 });
 
 cameraStage.addEventListener("pointermove", (event) => {
+  if (event.pointerType === "touch") return;
   if (!activePointers.has(event.pointerId)) return;
   event.preventDefault();
   activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -380,6 +537,7 @@ cameraStage.addEventListener("pointermove", (event) => {
 
 cameraStage.addEventListener("pointerup", endGuidePointer);
 cameraStage.addEventListener("pointercancel", (event) => {
+  if (event.pointerType === "touch") return;
   activePointers.delete(event.pointerId);
   cameraStage.classList.remove("is-dragging");
   activePointers.clear();
@@ -387,9 +545,38 @@ cameraStage.addEventListener("pointercancel", (event) => {
   gestureState = null;
 });
 
+cameraStage.addEventListener("touchstart", (event) => {
+  if (overlay.hidden) return;
+  event.preventDefault();
+  cameraStage.classList.add("is-dragging");
+  beginTouchGesture(event.touches);
+}, { passive: false });
+
+cameraStage.addEventListener("touchmove", (event) => {
+  if (overlay.hidden || !touchState) return;
+  event.preventDefault();
+  moveTouchGesture(event.touches);
+}, { passive: false });
+
+cameraStage.addEventListener("touchend", (event) => {
+  if (event.touches.length > 0) {
+    beginTouchGesture(event.touches);
+    return;
+  }
+
+  cameraStage.classList.remove("is-dragging");
+  touchState = null;
+});
+
+cameraStage.addEventListener("touchcancel", () => {
+  cameraStage.classList.remove("is-dragging");
+  touchState = null;
+});
+
 cameraStage.addEventListener("click", (event) => {
   if (didMoveGuide) return;
   showFocusRing(event.clientX, event.clientY);
+  focusCameraAt(event.clientX, event.clientY);
 });
 
 switchCameraButton.addEventListener("click", async () => {

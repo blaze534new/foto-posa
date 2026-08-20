@@ -36,12 +36,11 @@ input {
 
 .app-shell {
   min-height: 100svh;
-  width: min(100%, 720px);
+  width: 100%;
   margin: 0 auto;
-  padding: max(14px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
+  padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
 }
 
 .screen {
@@ -55,12 +54,35 @@ input {
   gap: 12px;
 }
 
+#cameraView.screen.is-active {
+  min-height: 100svh;
+  gap: 0;
+  overflow: hidden;
+}
+
 .top-bar,
 .result-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 14px;
+}
+
+#cameraView .top-bar {
+  position: fixed;
+  inset: max(12px, env(safe-area-inset-top)) 12px auto;
+  z-index: 10;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 17, 19, 0.62);
+  backdrop-filter: blur(14px);
+}
+
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 h1,
@@ -86,14 +108,15 @@ p {
 .camera-stage {
   position: relative;
   flex: 1 1 auto;
-  height: clamp(430px, 66svh, 780px);
-  min-height: 430px;
+  height: 100svh;
+  min-height: 100svh;
   overflow: hidden;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  border: 0;
+  border-radius: 0;
   background: #050506;
-  box-shadow: var(--shadow);
+  box-shadow: none;
   isolation: isolate;
+  touch-action: none;
 }
 
 #cameraVideo,
@@ -125,7 +148,6 @@ p {
 
 .camera-stage.is-guide-active {
   cursor: grab;
-  touch-action: none;
 }
 
 .camera-stage.is-dragging {
@@ -142,6 +164,18 @@ p {
   pointer-events: none;
   transform: translate(-50%, -50%) scale(0.85);
   opacity: 0;
+}
+
+.grid-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.42) calc(33.333% - 0.5px), rgba(255, 255, 255, 0.42) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
+    linear-gradient(to right, transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.42) calc(33.333% - 0.5px), rgba(255, 255, 255, 0.42) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
+    linear-gradient(to bottom, transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px));
 }
 
 .focus-ring.is-visible {
@@ -187,7 +221,14 @@ p {
 }
 
 .message {
+  position: fixed;
+  inset: auto 12px calc(176px + env(safe-area-inset-bottom));
+  z-index: 11;
   min-height: 20px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(17, 17, 19, 0.58);
+  backdrop-filter: blur(12px);
   color: var(--muted);
   font-size: 0.88rem;
   line-height: 1.3;
@@ -198,12 +239,18 @@ p {
 }
 
 .controls {
+  position: fixed;
+  inset: auto 10px max(10px, env(safe-area-inset-bottom));
+  z-index: 12;
   display: grid;
-  gap: 12px;
-  padding: 12px;
+  gap: 10px;
+  width: min(390px, calc(100vw - 20px));
+  margin-left: auto;
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 8px;
-  background: var(--panel);
+  background: rgba(28, 28, 32, 0.72);
+  backdrop-filter: blur(16px);
 }
 
 .file-actions,
@@ -271,7 +318,14 @@ p {
   font-size: 1.3rem;
 }
 
+.icon-button.is-active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+
 .opacity-control,
+.camera-zoom-control,
 .overlay-tools label {
   display: grid;
   gap: 8px;
@@ -281,6 +335,7 @@ p {
 }
 
 .opacity-control input,
+.camera-zoom-control input,
 .overlay-tools input {
   width: 100%;
   accent-color: var(--accent);
@@ -311,10 +366,22 @@ p {
 }
 
 .credit {
+  position: fixed;
+  inset: auto 12px calc(10px + env(safe-area-inset-bottom)) 12px;
+  z-index: 8;
   color: var(--muted);
   text-align: center;
   font-size: 0.78rem;
   line-height: 1.2;
+}
+
+#cameraView .credit {
+  display: none;
+}
+
+.result-screen .credit {
+  position: static;
+  inset: auto;
 }
 
 .credit a {
@@ -362,6 +429,9 @@ p {
 }
 
 .result-screen {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: max(14px, env(safe-area-inset-top)) 14px max(16px, env(safe-area-inset-bottom));
   min-height: calc(100svh - 30px);
 }
 
@@ -379,10 +449,10 @@ p {
 
 @media (orientation: landscape) and (max-height: 620px) {
   .app-shell {
-    width: min(100%, 980px);
+    width: 100%;
   }
 
-  .screen.is-active {
+  .result-screen.screen.is-active {
     display: grid;
     grid-template-columns: minmax(360px, 1fr) 300px;
     grid-template-rows: auto 1fr;
@@ -396,9 +466,19 @@ p {
 
   .camera-stage,
   .result-image {
-    height: auto;
+    height: 100svh;
     min-height: 0;
     max-height: none;
+  }
+
+  .controls {
+    width: min(340px, 36vw);
+    inset: auto 12px max(12px, env(safe-area-inset-bottom)) auto;
+  }
+
+  .message {
+    inset: auto 12px calc(168px + env(safe-area-inset-bottom)) auto;
+    width: min(340px, 36vw);
   }
 
   .controls,
@@ -409,10 +489,10 @@ p {
 
 @media (min-width: 760px) {
   .app-shell {
-    padding-block: 22px;
+    padding-block: 0;
   }
 
   .camera-stage {
-    min-height: 580px;
+    min-height: 100svh;
   }
 }

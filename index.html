@@ -15,14 +15,23 @@
             <h1>Foto Posa</h1>
             <p>Allinea la posa, poi scatta solo dalla camera.</p>
           </div>
-          <button id="switchCameraButton" class="icon-button" type="button" aria-label="Cambia fotocamera" title="Cambia fotocamera">
-            <span aria-hidden="true">↻</span>
-          </button>
+          <div class="top-actions">
+            <button id="gridButton" class="icon-button" type="button" aria-label="Mostra griglia" title="Mostra griglia">
+              <span aria-hidden="true">#</span>
+            </button>
+            <button id="fullscreenButton" class="icon-button" type="button" aria-label="Modalita schermo intero" title="Schermo intero">
+              <span aria-hidden="true">⛶</span>
+            </button>
+            <button id="switchCameraButton" class="icon-button" type="button" aria-label="Cambia fotocamera" title="Cambia fotocamera">
+              <span aria-hidden="true">↻</span>
+            </button>
+          </div>
         </div>
 
         <div class="camera-stage" id="cameraStage">
           <video id="cameraVideo" autoplay playsinline muted></video>
           <img id="guideOverlay" alt="Foto guida sovrapposta" hidden>
+          <div id="gridOverlay" class="grid-overlay" hidden></div>
           <div id="focusRing" class="focus-ring" hidden></div>
           <div id="emptyState" class="empty-state">
             <strong>Consenti la fotocamera</strong>
@@ -43,6 +52,11 @@
           <label class="opacity-control" for="opacitySlider">
             <span id="opacityLabel">Opacità foto guida: 50%</span>
             <input id="opacitySlider" type="range" min="0" max="100" value="50">
+          </label>
+
+          <label id="cameraZoomControl" class="camera-zoom-control" for="cameraZoomSlider" hidden>
+            <span id="cameraZoomLabel">Zoom camera: 1x</span>
+            <input id="cameraZoomSlider" type="range" min="1" max="1" step="0.1" value="1">
           </label>
 
           <div class="overlay-tools">
