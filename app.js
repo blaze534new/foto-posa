@@ -32,6 +32,7 @@ let resultObjectUrl = null;
 let guideTransform = { x: 0, y: 0, scale: 1, rotation: 0 };
 let dragState = null;
 let gestureState = null;
+let didMoveGuide = false;
 const activePointers = new Map();
 
 function setMessage(text, isError = false) {
@@ -118,12 +119,13 @@ function setGuide(file) {
   guideObjectUrl = URL.createObjectURL(file);
   overlay.src = guideObjectUrl;
   overlay.hidden = false;
+  cameraStage.classList.add("is-guide-active");
   changeGuideButton.hidden = false;
   removeGuideButton.hidden = false;
   resetGuideButton.hidden = false;
   loadGuideButton.textContent = "Carica foto guida";
   resetGuideTransform();
-  setMessage("Foto guida caricata. Trascinala, ingrandiscila o ruotala per allinearla.");
+  setMessage("Foto guida caricata. Trascina nell'area camera, usa due dita o gli slider per allinearla.");
   updateEmptyState();
 }
 
@@ -131,6 +133,7 @@ function removeGuide() {
   revokeGuideUrl();
   overlay.removeAttribute("src");
   overlay.hidden = true;
+  cameraStage.classList.remove("is-guide-active", "is-dragging");
   guideInput.value = "";
   changeGuideButton.hidden = true;
   removeGuideButton.hidden = true;
@@ -299,54 +302,7 @@ rotationSlider.addEventListener("input", () => {
 
 resetGuideButton.addEventListener("click", resetGuideTransform);
 
-overlay.addEventListener("pointerdown", (event) => {
-  if (overlay.hidden) return;
-  event.preventDefault();
-  overlay.setPointerCapture(event.pointerId);
-  overlay.classList.add("is-dragging");
-  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-
-  if (activePointers.size === 1) {
-    dragState = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      originX: guideTransform.x,
-      originY: guideTransform.y
-    };
-  }
-
-  if (activePointers.size === 2) {
-    dragState = null;
-    beginGesture();
-  }
-});
-
-overlay.addEventListener("pointermove", (event) => {
-  if (!activePointers.has(event.pointerId)) return;
-  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
-
-  if (gestureState && activePointers.size >= 2) {
-    const pointers = Array.from(activePointers.values()).slice(0, 2);
-    const center = pointerCenter(pointers[0], pointers[1]);
-    const nextDistance = pointerDistance(pointers[0], pointers[1]);
-    const nextAngle = pointerAngle(pointers[0], pointers[1]);
-
-    guideTransform.x = gestureState.originX + center.x - gestureState.centerX;
-    guideTransform.y = gestureState.originY + center.y - gestureState.centerY;
-    guideTransform.scale = clamp(gestureState.originScale * (nextDistance / Math.max(gestureState.distance, 1)), 0.4, 2.6);
-    guideTransform.rotation = clamp(gestureState.originRotation + nextAngle - gestureState.angle, -180, 180);
-    updateGuideTransform();
-    return;
-  }
-
-  if (!dragState || dragState.pointerId !== event.pointerId) return;
-  guideTransform.x = dragState.originX + event.clientX - dragState.startX;
-  guideTransform.y = dragState.originY + event.clientY - dragState.startY;
-  updateGuideTransform();
-});
-
-overlay.addEventListener("pointerup", (event) => {
+function endGuidePointer(event) {
   activePointers.delete(event.pointerId);
 
   if (activePointers.size < 2) {
@@ -365,19 +321,74 @@ overlay.addEventListener("pointerup", (event) => {
     return;
   }
 
-  overlay.classList.remove("is-dragging");
+  cameraStage.classList.remove("is-dragging");
   dragState = null;
+}
+
+cameraStage.addEventListener("pointerdown", (event) => {
+  if (overlay.hidden) return;
+  event.preventDefault();
+  cameraStage.setPointerCapture(event.pointerId);
+  cameraStage.classList.add("is-dragging");
+  didMoveGuide = false;
+  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+  if (activePointers.size === 1) {
+    dragState = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      originX: guideTransform.x,
+      originY: guideTransform.y
+    };
+  }
+
+  if (activePointers.size === 2) {
+    dragState = null;
+    beginGesture();
+  }
 });
 
-overlay.addEventListener("pointercancel", () => {
-  overlay.classList.remove("is-dragging");
+cameraStage.addEventListener("pointermove", (event) => {
+  if (!activePointers.has(event.pointerId)) return;
+  event.preventDefault();
+  activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+  if (gestureState && activePointers.size >= 2) {
+    const pointers = Array.from(activePointers.values()).slice(0, 2);
+    const center = pointerCenter(pointers[0], pointers[1]);
+    const nextDistance = pointerDistance(pointers[0], pointers[1]);
+    const nextAngle = pointerAngle(pointers[0], pointers[1]);
+
+    guideTransform.x = gestureState.originX + center.x - gestureState.centerX;
+    guideTransform.y = gestureState.originY + center.y - gestureState.centerY;
+    guideTransform.scale = clamp(gestureState.originScale * (nextDistance / Math.max(gestureState.distance, 1)), 0.4, 2.6);
+    guideTransform.rotation = clamp(gestureState.originRotation + nextAngle - gestureState.angle, -180, 180);
+    didMoveGuide = true;
+    updateGuideTransform();
+    return;
+  }
+
+  if (!dragState || dragState.pointerId !== event.pointerId) return;
+  guideTransform.x = dragState.originX + event.clientX - dragState.startX;
+  guideTransform.y = dragState.originY + event.clientY - dragState.startY;
+  if (Math.hypot(event.clientX - dragState.startX, event.clientY - dragState.startY) > 4) {
+    didMoveGuide = true;
+  }
+  updateGuideTransform();
+});
+
+cameraStage.addEventListener("pointerup", endGuidePointer);
+cameraStage.addEventListener("pointercancel", (event) => {
+  activePointers.delete(event.pointerId);
+  cameraStage.classList.remove("is-dragging");
   activePointers.clear();
   dragState = null;
   gestureState = null;
 });
 
 cameraStage.addEventListener("click", (event) => {
-  if (event.target === overlay) return;
+  if (didMoveGuide) return;
   showFocusRing(event.clientX, event.clientY);
 });
 

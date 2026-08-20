@@ -117,15 +117,18 @@ p {
   z-index: 2;
   object-fit: contain;
   object-position: center;
-  pointer-events: auto;
-  cursor: grab;
+  pointer-events: none;
   opacity: 0.5;
-  touch-action: none;
   user-select: none;
   will-change: transform, opacity;
 }
 
-#guideOverlay.is-dragging {
+.camera-stage.is-guide-active {
+  cursor: grab;
+  touch-action: none;
+}
+
+.camera-stage.is-dragging {
   cursor: grabbing;
 }
 
