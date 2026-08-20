@@ -28,6 +28,10 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
+body.camera-mode {
+  overflow: hidden;
+}
+
 button,
 a,
 input {
@@ -83,6 +87,16 @@ input {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+#cameraView.is-fullscreen-mode .top-bar {
+  background: rgba(17, 17, 19, 0.36);
+}
+
+#cameraView.is-fullscreen-mode .top-bar h1,
+#cameraView.is-fullscreen-mode .top-bar p,
+#cameraView.is-fullscreen-mode .message {
+  display: none;
 }
 
 h1,
@@ -146,6 +160,23 @@ p {
   will-change: transform, opacity;
 }
 
+.ratio-frame {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 3;
+  width: min(100vw, calc(100svh * var(--capture-ratio, 0.5625)));
+  height: min(100svh, calc(100vw / var(--capture-ratio, 0.5625)));
+  border: 1px solid rgba(255, 207, 90, 0.72);
+  box-shadow: 0 0 0 999px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+}
+
+.ratio-frame.is-hidden {
+  display: none;
+}
+
 .camera-stage.is-guide-active {
   cursor: grab;
 }
@@ -176,6 +207,15 @@ p {
     linear-gradient(to right, transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px)),
     linear-gradient(to bottom, transparent calc(33.333% - 0.5px), rgba(255, 255, 255, 0.42) calc(33.333% - 0.5px), rgba(255, 255, 255, 0.42) calc(33.333% + 0.5px), transparent calc(33.333% + 0.5px)),
     linear-gradient(to bottom, transparent calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% - 0.5px), rgba(255, 255, 255, 0.42) calc(66.666% + 0.5px), transparent calc(66.666% + 0.5px));
+}
+
+.gesture-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
 }
 
 .focus-ring.is-visible {
@@ -253,6 +293,52 @@ p {
   backdrop-filter: blur(16px);
 }
 
+.settings-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.settings-panel summary {
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  color: var(--text);
+  cursor: pointer;
+  font-weight: 800;
+  list-style: none;
+}
+
+.settings-panel summary::-webkit-details-marker {
+  display: none;
+}
+
+.settings-panel[open] {
+  max-height: 46svh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.settings-panel[open] summary {
+  margin-bottom: 10px;
+}
+
+.guide-position-status {
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(17, 17, 19, 0.5);
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
 .file-actions,
 .result-actions {
   display: grid;
@@ -326,6 +412,7 @@ p {
 
 .opacity-control,
 .camera-zoom-control,
+.ratio-control,
 .overlay-tools label {
   display: grid;
   gap: 8px;
@@ -341,9 +428,29 @@ p {
   accent-color: var(--accent);
 }
 
+.ratio-control select {
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  color: var(--text);
+  padding: 8px 10px;
+}
+
 .overlay-tools {
   display: grid;
   gap: 10px;
+}
+
+.move-tools {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.move-tools .button {
+  min-height: 38px;
 }
 
 .overlay-tools .button {

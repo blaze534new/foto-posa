@@ -18,6 +18,8 @@ Puoi trascinare la foto guida sopra la camera, ingrandirla, ruotarla e ricentrar
 
 La schermata principale usa una modalita camera a tutto schermo, con griglia opzionale, cambio fotocamera e zoom camera quando il dispositivo lo supporta.
 
+Il formato dello scatto e selezionabile. Il valore iniziale e 9:16, pensato per foto verticali da smartphone.
+
 ## Privacy
 
 L'app funziona direttamente nel browser. Le foto guida, il feed della fotocamera e le foto scattate non vengono raccolti da questa applicazione.

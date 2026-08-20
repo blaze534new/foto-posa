@@ -3,7 +3,9 @@ const resultView = document.querySelector("#resultView");
 const cameraStage = document.querySelector("#cameraStage");
 const video = document.querySelector("#cameraVideo");
 const overlay = document.querySelector("#guideOverlay");
+const ratioFrame = document.querySelector("#ratioFrame");
 const gridOverlay = document.querySelector("#gridOverlay");
+const gestureLayer = document.querySelector("#gestureLayer");
 const focusRing = document.querySelector("#focusRing");
 const emptyState = document.querySelector("#emptyState");
 const message = document.querySelector("#message");
@@ -13,6 +15,7 @@ const changeGuideButton = document.querySelector("#changeGuideButton");
 const removeGuideButton = document.querySelector("#removeGuideButton");
 const opacitySlider = document.querySelector("#opacitySlider");
 const opacityLabel = document.querySelector("#opacityLabel");
+const guidePositionStatus = document.querySelector("#guidePositionStatus");
 const zoomSlider = document.querySelector("#zoomSlider");
 const zoomLabel = document.querySelector("#zoomLabel");
 const rotationSlider = document.querySelector("#rotationSlider");
@@ -21,6 +24,7 @@ const resetGuideButton = document.querySelector("#resetGuideButton");
 const cameraZoomControl = document.querySelector("#cameraZoomControl");
 const cameraZoomSlider = document.querySelector("#cameraZoomSlider");
 const cameraZoomLabel = document.querySelector("#cameraZoomLabel");
+const ratioSelect = document.querySelector("#ratioSelect");
 const gridButton = document.querySelector("#gridButton");
 const fullscreenButton = document.querySelector("#fullscreenButton");
 const switchCameraButton = document.querySelector("#switchCameraButton");
@@ -40,7 +44,14 @@ let dragState = null;
 let gestureState = null;
 let didMoveGuide = false;
 let touchState = null;
+let mouseState = null;
 const activePointers = new Map();
+const captureRatios = {
+  "9:16": 9 / 16,
+  "3:4": 3 / 4,
+  "1:1": 1,
+  "4:5": 4 / 5
+};
 
 function setMessage(text, isError = false) {
   message.textContent = text;
@@ -73,8 +84,10 @@ async function startCamera() {
     stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: facingMode },
-        width: { ideal: 1920 },
-        height: { ideal: 1080 }
+        width: { ideal: 2160 },
+        height: { ideal: 3840 },
+        aspectRatio: { ideal: 9 / 16 },
+        resizeMode: { ideal: "none" }
       },
       audio: false
     });
@@ -199,6 +212,7 @@ function updateGuideTransform() {
   rotationSlider.value = String(Math.round(guideTransform.rotation));
   zoomLabel.textContent = `Dimensione foto guida: ${zoomSlider.value}%`;
   rotationLabel.textContent = `Rotazione foto guida: ${rotationSlider.value}°`;
+  guidePositionStatus.textContent = `Guida: x ${Math.round(guideTransform.x)}, y ${Math.round(guideTransform.y)}`;
 }
 
 function resetGuideTransform() {
@@ -321,6 +335,12 @@ function showResult(blob) {
   resultImage.src = resultObjectUrl;
   saveLink.href = resultObjectUrl;
   saveLink.download = timestampFileName();
+  document.body.classList.remove("camera-mode");
+  cameraView.classList.remove("is-fullscreen-mode");
+  fullscreenButton.classList.remove("is-active");
+  if (document.fullscreenElement && document.exitFullscreen) {
+    document.exitFullscreen().catch(() => {});
+  }
   cameraView.classList.remove("is-active");
   resultView.classList.add("is-active");
 }
@@ -335,17 +355,21 @@ function capturePhoto() {
       return;
     }
 
-    canvas.width = width;
-    canvas.height = height;
+    const crop = getVideoCrop(width, height, ratioSelect.value);
+
+    canvas.width = crop.width;
+    canvas.height = crop.height;
     const context = canvas.getContext("2d", { alpha: false });
+    context.imageSmoothingEnabled = true;
+    context.imageSmoothingQuality = "high";
 
     context.save();
     if (facingMode === "user") {
-      context.translate(width, 0);
+      context.translate(crop.width, 0);
       context.scale(-1, 1);
     }
 
-    context.drawImage(video, 0, 0, width, height);
+    context.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, crop.width, crop.height);
     context.restore();
 
     canvas.toBlob(
@@ -357,14 +381,47 @@ function capturePhoto() {
         showResult(blob);
       },
       "image/jpeg",
-      0.95
+      0.98
     );
   } catch (error) {
     setMessage(`Errore durante lo scatto: ${error.message || error.name}`, true);
   }
 }
 
+function getVideoCrop(width, height, ratio) {
+  const targetRatio = captureRatios[ratio];
+  if (!targetRatio) return { x: 0, y: 0, width, height };
+
+  const sourceRatio = width / height;
+  if (sourceRatio > targetRatio) {
+    const cropWidth = Math.round(height * targetRatio);
+    return {
+      x: Math.round((width - cropWidth) / 2),
+      y: 0,
+      width: cropWidth,
+      height
+    };
+  }
+
+  const cropHeight = Math.round(width / targetRatio);
+  return {
+    x: 0,
+    y: Math.round((height - cropHeight) / 2),
+    width,
+    height: cropHeight
+  };
+}
+
+function updateRatioFrame() {
+  const targetRatio = captureRatios[ratioSelect.value];
+  ratioFrame.classList.toggle("is-hidden", !targetRatio);
+  if (targetRatio) {
+    cameraStage.style.setProperty("--capture-ratio", String(targetRatio));
+  }
+}
+
 function returnToCamera() {
+  document.body.classList.add("camera-mode");
   resultView.classList.remove("is-active");
   cameraView.classList.add("is-active");
 }
@@ -435,29 +492,43 @@ rotationSlider.addEventListener("input", () => {
 });
 
 resetGuideButton.addEventListener("click", resetGuideTransform);
+document.querySelectorAll("[data-move-guide]").forEach((button) => {
+  button.addEventListener("click", () => {
+    const amount = 12;
+    const direction = button.dataset.moveGuide;
+    if (direction === "up") guideTransform.y -= amount;
+    if (direction === "down") guideTransform.y += amount;
+    if (direction === "left") guideTransform.x -= amount;
+    if (direction === "right") guideTransform.x += amount;
+    updateGuideTransform();
+  });
+});
 cameraZoomSlider.addEventListener("input", applyCameraZoom);
+ratioSelect.addEventListener("change", updateRatioFrame);
 gridButton.addEventListener("click", () => {
   gridOverlay.hidden = !gridOverlay.hidden;
   gridButton.classList.toggle("is-active", !gridOverlay.hidden);
 });
 
 fullscreenButton.addEventListener("click", async () => {
+  const isActive = cameraView.classList.toggle("is-fullscreen-mode");
+  fullscreenButton.classList.toggle("is-active", isActive);
+
   try {
-    if (!document.fullscreenElement && cameraView.requestFullscreen) {
+    if (isActive && !document.fullscreenElement && cameraView.requestFullscreen) {
       await cameraView.requestFullscreen();
       return;
     }
 
-    if (document.fullscreenElement && document.exitFullscreen) {
+    if (!isActive && document.fullscreenElement && document.exitFullscreen) {
       await document.exitFullscreen();
     }
   } catch (error) {
-    setMessage(`Schermo intero non disponibile: ${error.message || error.name}`, true);
+    setMessage("Modalita camera pulita attiva. Il fullscreen nativo non e supportato da questo browser.");
   }
 });
 
 function endGuidePointer(event) {
-  if (event.pointerType === "touch") return;
   activePointers.delete(event.pointerId);
 
   if (activePointers.size < 2) {
@@ -480,11 +551,10 @@ function endGuidePointer(event) {
   dragState = null;
 }
 
-cameraStage.addEventListener("pointerdown", (event) => {
-  if (event.pointerType === "touch") return;
+gestureLayer.addEventListener("pointerdown", (event) => {
   if (overlay.hidden) return;
   event.preventDefault();
-  cameraStage.setPointerCapture(event.pointerId);
+  gestureLayer.setPointerCapture(event.pointerId);
   cameraStage.classList.add("is-dragging");
   didMoveGuide = false;
   activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -505,8 +575,7 @@ cameraStage.addEventListener("pointerdown", (event) => {
   }
 });
 
-cameraStage.addEventListener("pointermove", (event) => {
-  if (event.pointerType === "touch") return;
+gestureLayer.addEventListener("pointermove", (event) => {
   if (!activePointers.has(event.pointerId)) return;
   event.preventDefault();
   activePointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
@@ -535,9 +604,8 @@ cameraStage.addEventListener("pointermove", (event) => {
   updateGuideTransform();
 });
 
-cameraStage.addEventListener("pointerup", endGuidePointer);
-cameraStage.addEventListener("pointercancel", (event) => {
-  if (event.pointerType === "touch") return;
+gestureLayer.addEventListener("pointerup", endGuidePointer);
+gestureLayer.addEventListener("pointercancel", (event) => {
   activePointers.delete(event.pointerId);
   cameraStage.classList.remove("is-dragging");
   activePointers.clear();
@@ -545,20 +613,20 @@ cameraStage.addEventListener("pointercancel", (event) => {
   gestureState = null;
 });
 
-cameraStage.addEventListener("touchstart", (event) => {
+gestureLayer.addEventListener("touchstart", (event) => {
   if (overlay.hidden) return;
   event.preventDefault();
   cameraStage.classList.add("is-dragging");
   beginTouchGesture(event.touches);
 }, { passive: false });
 
-cameraStage.addEventListener("touchmove", (event) => {
+gestureLayer.addEventListener("touchmove", (event) => {
   if (overlay.hidden || !touchState) return;
   event.preventDefault();
   moveTouchGesture(event.touches);
 }, { passive: false });
 
-cameraStage.addEventListener("touchend", (event) => {
+gestureLayer.addEventListener("touchend", (event) => {
   if (event.touches.length > 0) {
     beginTouchGesture(event.touches);
     return;
@@ -568,15 +636,45 @@ cameraStage.addEventListener("touchend", (event) => {
   touchState = null;
 });
 
-cameraStage.addEventListener("touchcancel", () => {
+gestureLayer.addEventListener("touchcancel", () => {
   cameraStage.classList.remove("is-dragging");
   touchState = null;
 });
 
-cameraStage.addEventListener("click", (event) => {
+gestureLayer.addEventListener("click", (event) => {
   if (didMoveGuide) return;
   showFocusRing(event.clientX, event.clientY);
   focusCameraAt(event.clientX, event.clientY);
+});
+
+gestureLayer.addEventListener("mousedown", (event) => {
+  if (overlay.hidden || event.button !== 0) return;
+  event.preventDefault();
+  mouseState = {
+    startX: event.clientX,
+    startY: event.clientY,
+    originX: guideTransform.x,
+    originY: guideTransform.y
+  };
+  didMoveGuide = false;
+  cameraStage.classList.add("is-dragging");
+});
+
+window.addEventListener("mousemove", (event) => {
+  if (!mouseState) return;
+  event.preventDefault();
+  guideTransform.x = mouseState.originX + event.clientX - mouseState.startX;
+  guideTransform.y = mouseState.originY + event.clientY - mouseState.startY;
+  if (Math.hypot(event.clientX - mouseState.startX, event.clientY - mouseState.startY) > 4) {
+    didMoveGuide = true;
+  }
+  updateGuideTransform();
+});
+
+window.addEventListener("mouseup", () => {
+  if (!mouseState) return;
+  mouseState = null;
+  cameraStage.classList.remove("is-dragging");
 });
 
 switchCameraButton.addEventListener("click", async () => {
@@ -596,4 +694,6 @@ window.addEventListener("pagehide", () => {
 
 updateOpacity();
 updateGuideTransform();
+updateRatioFrame();
+document.body.classList.add("camera-mode");
 startCamera();
