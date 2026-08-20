@@ -284,7 +284,7 @@ p {
   z-index: 12;
   display: grid;
   gap: 10px;
-  width: min(390px, calc(100vw - 20px));
+  width: min(280px, calc(100vw - 20px));
   margin-left: auto;
   padding: 10px;
   border: 1px solid var(--line);
@@ -293,11 +293,18 @@ p {
   backdrop-filter: blur(16px);
 }
 
+.tools-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.tools-panel summary,
 .settings-panel {
   display: grid;
   gap: 10px;
 }
 
+.tools-panel summary,
 .settings-panel summary {
   min-height: 40px;
   display: flex;
@@ -312,8 +319,28 @@ p {
   list-style: none;
 }
 
+.tools-panel summary::-webkit-details-marker,
 .settings-panel summary::-webkit-details-marker {
   display: none;
+}
+
+.tools-panel[open] {
+  max-height: 54svh;
+  overflow: auto;
+  padding-right: 2px;
+}
+
+.controls:has(.tools-panel[open]) {
+  width: min(390px, calc(100vw - 20px));
+}
+
+.tools-panel[open] summary {
+  margin-bottom: 10px;
+}
+
+.tools-panel[open] + .shutter-button {
+  inline-size: 76px;
+  block-size: 76px;
 }
 
 .settings-panel[open] {
