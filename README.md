@@ -6,11 +6,15 @@ Quando scatti, la foto guida non finisce nell'immagine finale. Lo scatto viene c
 
 Made by [Biagio Lernetti](https://biagiolernetti.it).
 
+Repository: [github.com/blaze534new/foto-posa](https://github.com/blaze534new/foto-posa)
+
 ## Come funziona
 
 Apri l'app, consenti l'accesso alla fotocamera, scegli una foto guida e regola l'opacita. Quando premi "Scatta", l'app genera una foto JPEG scaricabile.
 
 La foto guida resta solo nella preview. Non viene disegnata sul canvas usato per salvare lo scatto.
+
+Puoi trascinare la foto guida sopra la camera, ingrandirla, ruotarla e ricentrarla.
 
 ## Privacy
 

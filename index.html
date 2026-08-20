@@ -23,6 +23,7 @@
         <div class="camera-stage" id="cameraStage">
           <video id="cameraVideo" autoplay playsinline muted></video>
           <img id="guideOverlay" alt="Foto guida sovrapposta" hidden>
+          <div id="focusRing" class="focus-ring" hidden></div>
           <div id="emptyState" class="empty-state">
             <strong>Consenti la fotocamera</strong>
             <span>Poi scegli una foto guida dalla galleria.</span>
@@ -44,6 +45,18 @@
             <input id="opacitySlider" type="range" min="0" max="100" value="50">
           </label>
 
+          <div class="overlay-tools">
+            <label for="zoomSlider">
+              <span id="zoomLabel">Dimensione foto guida: 100%</span>
+              <input id="zoomSlider" type="range" min="40" max="260" value="100">
+            </label>
+            <label for="rotationSlider">
+              <span id="rotationLabel">Rotazione foto guida: 0°</span>
+              <input id="rotationSlider" type="range" min="-180" max="180" value="0">
+            </label>
+            <button id="resetGuideButton" class="button ghost" type="button" hidden>Centra foto guida</button>
+          </div>
+
           <button id="captureButton" class="shutter-button" type="button">
             <span>Scatta</span>
           </button>
@@ -52,6 +65,7 @@
         <footer class="credit">
           Made by <a href="https://biagiolernetti.it" target="_blank" rel="noopener noreferrer">Biagio Lernetti</a>.
           Fornito gratuitamente, open source, con licenza MIT.
+          <a href="https://github.com/blaze534new/foto-posa" target="_blank" rel="noopener noreferrer">GitHub</a>
         </footer>
       </section>
 
@@ -69,6 +83,7 @@
         <footer class="credit">
           Made by <a href="https://biagiolernetti.it" target="_blank" rel="noopener noreferrer">Biagio Lernetti</a>.
           Fornito gratuitamente, open source, con licenza MIT.
+          <a href="https://github.com/blaze534new/foto-posa" target="_blank" rel="noopener noreferrer">GitHub</a>
         </footer>
       </section>
 
@@ -83,7 +98,9 @@
           dati tecnici di connessione necessari a servire il sito.
         </p>
         <p>
-          Il codice puo essere pubblicato su GitHub come progetto open source con licenza MIT.
+          Il codice e disponibile su
+          <a href="https://github.com/blaze534new/foto-posa" target="_blank" rel="noopener noreferrer">GitHub</a>
+          come progetto open source con licenza MIT.
         </p>
       </section>
     </main>

@@ -86,8 +86,8 @@ p {
 .camera-stage {
   position: relative;
   flex: 1 1 auto;
-  min-height: 360px;
-  max-height: 70svh;
+  height: clamp(430px, 66svh, 780px);
+  min-height: 430px;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -117,8 +117,48 @@ p {
   z-index: 2;
   object-fit: contain;
   object-position: center;
-  pointer-events: none;
+  pointer-events: auto;
+  cursor: grab;
   opacity: 0.5;
+  touch-action: none;
+  user-select: none;
+  will-change: transform, opacity;
+}
+
+#guideOverlay.is-dragging {
+  cursor: grabbing;
+}
+
+.focus-ring {
+  position: absolute;
+  z-index: 4;
+  inline-size: 76px;
+  block-size: 76px;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  pointer-events: none;
+  transform: translate(-50%, -50%) scale(0.85);
+  opacity: 0;
+}
+
+.focus-ring.is-visible {
+  animation: focus-pop 680ms ease-out;
+}
+
+@keyframes focus-pop {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.25);
+  }
+
+  22% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
 }
 
 .empty-state {
@@ -228,7 +268,8 @@ p {
   font-size: 1.3rem;
 }
 
-.opacity-control {
+.opacity-control,
+.overlay-tools label {
   display: grid;
   gap: 8px;
   color: var(--text);
@@ -236,9 +277,19 @@ p {
   font-weight: 700;
 }
 
-.opacity-control input {
+.opacity-control input,
+.overlay-tools input {
   width: 100%;
   accent-color: var(--accent);
+}
+
+.overlay-tools {
+  display: grid;
+  gap: 10px;
+}
+
+.overlay-tools .button {
+  width: 100%;
 }
 
 .shutter-button {
@@ -271,6 +322,17 @@ p {
 
 .credit a:focus-visible,
 .credit a:hover {
+  text-decoration: underline;
+}
+
+.privacy-note a {
+  color: var(--accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.privacy-note a:focus-visible,
+.privacy-note a:hover {
   text-decoration: underline;
 }
 
@@ -331,6 +393,7 @@ p {
 
   .camera-stage,
   .result-image {
+    height: auto;
     min-height: 0;
     max-height: none;
   }
@@ -347,6 +410,6 @@ p {
   }
 
   .camera-stage {
-    min-height: 520px;
+    min-height: 580px;
   }
 }
